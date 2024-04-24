@@ -80,7 +80,7 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
                                  std::istream_iterator<std::string>{}};
   if (words[0] == "read") {
     int statusChannel = 0;
-    if (words.size() < 2) {
+    if (words.size() != 2) {
       return "Error command, usage: read <channel>";
     }
 
@@ -94,9 +94,16 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
           if (channel.msgs.empty()) {
             return "В канале пусто";
           }
-          for (Message pair : channel.msgs) {
+          //   for (Message pair : channel.msgs) {
+          size_t numMessages = channel.msgs.size();
+          size_t start = numMessages > 40 ? numMessages - 40 : 0;
+
+          for (size_t i = start; i < numMessages; ++i) {
+            const Message& pair = channel.msgs[i];
             answer += pair.nick + ": " + pair.message + '\n';
           }
+          // answer += pair.nick + ": " + pair.message + '\n';
+          //   }
         } else {
           return "Error: юзер " + nickname + " не найден в канале " +
                  channel.name;
@@ -140,7 +147,7 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
     }
   } else if (words[0] == "join") {
     int statusChannel = 0;
-    if (words.size() < 2) {
+    if (words.size() != 2) {
       return "Error command, usage: join <channel>";
     }
     for (auto it = channels.begin(); it != channels.end(); ++it) {
@@ -182,6 +189,24 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
     if (statusChannel == 0) {
       answer = "Такого канала пока нет";
     }
+  } else if (words[0] == "commands") {
+    answer = "Список команд, которые вы можете ввести:\n";
+    answer += "\n";
+    answer += "send <channel> <message>\n";
+    answer += "read <channel>\n";
+    answer += "join <channel>\n";
+    answer += "exit <channel>\n";
+    answer += "commands";
+  } else {
+    answer =
+        "Error: Введена неверная команда. Использьзуйте команды из списка "
+        "ниже:\n";
+    answer += "\n";
+    answer += "send <channel> <message>\n";
+    answer += "read <channel>\n";
+    answer += "join <channel>\n";
+    answer += "exit <channel>\n";
+    answer += "commands";
   }
   return answer;
 }

@@ -8,7 +8,7 @@ int main(int argc, char* argv[]) {
               << std::endl;
     exit(1);
   }
-  int clientSocket;
+
   int port;
   std::string channel;
   std::string nickPlusChannel;
@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
               << std::endl;
     exit(1);
   }
-  CreateClientSocket(clientSocket, port, argv[1]);
+  CreateClientSocket(sockets.clientSocket, port, argv[1]);
 
   std::string nickname;
   std::cout << "Введите ваш nickname: ";
@@ -35,25 +35,25 @@ int main(int argc, char* argv[]) {
   nickPlusChannel += ' ';
   nickPlusChannel += argv[3];
   const char* charNickPlusChannel = nickPlusChannel.c_str();
-  send(clientSocket, (const void*)charNickPlusChannel, BUFF_SIZE, 0);
-  recv(clientSocket, buffer, BUFF_SIZE, 0);
+  send(sockets.clientSocket, (const void*)charNickPlusChannel, BUFF_SIZE, 0);
+  recv(sockets.clientSocket, buffer, BUFF_SIZE, 0);
   std::string strBuffer1(buffer);
   if (strBuffer1 == "OK") {
     while (true) {
       std::string message;
       getline(std::cin, message);
       const char* charMessage = message.c_str();
-      send(clientSocket, (const void*)charMessage, BUFF_SIZE, 0);
-      recv(clientSocket, buffer, BUFF_SIZE, 0);
+      send(sockets.clientSocket, (const void*)charMessage, BUFF_SIZE, 0);
+      recv(sockets.clientSocket, buffer, BUFF_SIZE, 0);
       std::string strBuffer(buffer);
       std::cout << strBuffer << std::endl;
       std::cout << std::endl;
     }
-    close(clientSocket);
+    close(sockets.clientSocket);
   } else {
     std::cout << buffer << std::endl;
   }
 
-  close(clientSocket);
+  close(sockets.clientSocket);
   return 0;
 }

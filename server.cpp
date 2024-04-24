@@ -7,19 +7,19 @@ int main(int argc, char* argv[]) {
     std::cerr << "Usage: " << argv[0] << " <port>" << std::endl;
     exit(1);
   }
-  int serverSocket, clientSocket;
   int port;
   std::vector<Channel> channels;
   port = std::atoi(argv[1]);
   struct sockaddr_in clientAddress;
   socklen_t clientLen = sizeof(clientAddress);
+  signal(SIGINT, signalHandler);
 
-  CreateServerSocket(serverSocket, port);
+  CreateServerSocket(sockets.serverSocket, port);
   std::vector<std::shared_ptr<std::thread>> threads;
   while (true) {
-    clientSocket =
-        accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
-    if (clientSocket < 0) {
+    sockets.clientSocketOnServer = accept(
+        sockets.serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
+    if (sockets.clientSocketOnServer < 0) {
       std::cerr << "Error: eccepting failed" << std::endl;
       exit(1);
     }
@@ -29,25 +29,19 @@ int main(int argc, char* argv[]) {
                                  }),
                   threads.end());
 
-    // Создаем новый поток для обработки клиента
     std::shared_ptr<std::thread> clientThread = std::make_shared<std::thread>(
-        handleClient, clientSocket, std::ref(channels));
+        handleClient, sockets.clientSocketOnServer, std::ref(channels));
 
-    // Отсоединяем поток
     clientThread->detach();
 
-    // Добавляем поток в список
     threads.push_back(clientThread);
   }
 
-  // Здесь можно ожидать завершения оставшихся потоков, если это необходимо
   for (auto& t : threads) {
     if (t->joinable()) {
       t->join();
     }
-    // std::thread clientThread(handleClient, clientSocket, std::ref(channels));
-    // clientThread.detach();
   }
-  close(serverSocket);
+  close(sockets.serverSocket);
   return 0;
 }

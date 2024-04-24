@@ -31,6 +31,14 @@ struct Channel {
   std::vector<std::string> clients;
 };
 
+struct Sockets {
+  int clientSocket;
+  int serverSocket;
+  int clientSocketOnServer;
+};
+
+Sockets sockets;
+
 void CreateClientSocket(int& clientSocket, int& port, char* address) {
   struct sockaddr_in serverAddress;
   clientSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -81,7 +89,7 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
   if (words[0] == "read") {
     int statusChannel = 0;
     if (words.size() != 2) {
-      return "Error command, usage: read <channel>";
+      return "Error command, use: read <channel>";
     }
 
     for (Channel channel : channels) {
@@ -92,7 +100,7 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
         if (it != channel.clients.end()) {
           // пользователь есть в данном канале
           if (channel.msgs.empty()) {
-            return "В канале пусто";
+            return "Channel is empty";
           }
           //   for (Message pair : channel.msgs) {
           size_t numMessages = channel.msgs.size();
@@ -105,18 +113,22 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
           // answer += pair.nick + ": " + pair.message + '\n';
           //   }
         } else {
-          return "Error: юзер " + nickname + " не найден в канале " +
+          return "Error: user " + nickname + " not found in the channel " +
                  channel.name;
         }
         break;
       }
     }
     if (statusChannel == 0) {
-      answer = "Такого канала пока нет";
+      answer = "There is no such channel yet, we are creating it...";
+      Channel newChannel;
+      newChannel.name = words[1];
+      newChannel.clients.push_back(nickname);
+      channels.push_back(newChannel);
     }
   } else if (words[0] == "send") {
     if (words.size() < 3) {
-      return "Error command, usage: send <channel> <message>";
+      return "Error command, use: send <channel> <message>";
     }
     int statusChannel = 0;
     std::string msg = "";
@@ -135,20 +147,25 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
           mssg.nick = nickname;
           mssg.message = msg;
           it->msgs.push_back({mssg.nick, mssg.message});
-          answer = "Сообщение " + msg + " удачно отправлено";
+          answer = "Message " + msg + " sent successfully";
         } else {
-          return "Error: юзер " + nickname + " не найден в канале " + it->name;
+          return "Error: user " + nickname + " not found in the channel " +
+                 it->name;
         }
         break;
       }
     }
     if (statusChannel == 0) {
-      answer = "Такого канала пока нет";
+      answer = "There is no such channel yet, we are creating it...";
+      Channel newChannel;
+      newChannel.name = words[1];
+      newChannel.clients.push_back(nickname);
+      channels.push_back(newChannel);
     }
   } else if (words[0] == "join") {
     int statusChannel = 0;
     if (words.size() != 2) {
-      return "Error command, usage: join <channel>";
+      return "Error command, use: join <channel>";
     }
     for (auto it = channels.begin(); it != channels.end(); ++it) {
       if (it->name == words[1]) {
@@ -156,16 +173,20 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
         std::vector<std::string>::iterator itClient =
             std::find(it->clients.begin(), it->clients.end(), nickname);
         if (itClient != it->clients.end()) {
-          return "Error: данный пользователь уже есть в канале";
+          return "Error: this user is already in the channel";
         } else {
           it->clients.push_back(nickname);
-          answer = "Пользователь " + nickname + " успешно добавлен на канал " +
+          answer = "User " + nickname + " successfully added to the channel " +
                    words[1];
         }
       }
     }
     if (statusChannel == 0) {
-      answer = "Такого канала пока нет";
+      answer = "There is no such channel yet, we are creating it...";
+      Channel newChannel;
+      newChannel.name = words[1];
+      newChannel.clients.push_back(nickname);
+      channels.push_back(newChannel);
     }
   } else if (words[0] == "exit") {
     int statusChannel = 0;
@@ -179,18 +200,22 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
             std::find(it->clients.begin(), it->clients.end(), nickname);
         if (itClient != it->clients.end()) {
           it->clients.erase(itClient);
-          answer = "Пользователь " + nickname + " успешно удален из канала " +
-                   words[1];
+          answer = "User " + nickname +
+                   " successfully deleted from the channel " + words[1];
         } else {
-          return "Пользователя " + nickname + " нет в канале " + words[1];
+          return "The user " + nickname + " is not in the channel " + words[1];
         }
       }
     }
     if (statusChannel == 0) {
-      answer = "Такого канала пока нет";
+      answer = "There is no such channel yet, we are creating it...";
+      Channel newChannel;
+      newChannel.name = words[1];
+      newChannel.clients.push_back(nickname);
+      channels.push_back(newChannel);
     }
   } else if (words[0] == "commands") {
-    answer = "Список команд, которые вы можете ввести:\n";
+    answer = "A list of commands that you can enter:\n";
     answer += "\n";
     answer += "send <channel> <message>\n";
     answer += "read <channel>\n";
@@ -199,8 +224,8 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
     answer += "commands";
   } else {
     answer =
-        "Error: Введена неверная команда. Использьзуйте команды из списка "
-        "ниже:\n";
+        "Error: The wrong command was entered. Use the commands from the list "
+        "below:\n";
     answer += "\n";
     answer += "send <channel> <message>\n";
     answer += "read <channel>\n";
@@ -223,17 +248,17 @@ void handleClient(int clientSocket, std::vector<Channel>& channels) {
   for (auto it = channels.begin(); it != channels.end(); ++it) {
     if (it->name == channel) {
       flag = 1;
-      answer = "Такой канал уже существует, выберите другое название";
+      answer = "Such a channel already exists, choose another name";
     }
     for (const auto& client : it->clients) {
       if (client == nickname) {
         flag = 1;
-        answer = "Такой никнейм уже используется, выберите другой";
+        answer = "This nickname is already in use, choose another one";
       }
     }
   }
   const char* charCheckOk = answer.c_str();
-  // std::cout << "Error: " << charCheckOk << std::endl;
+
   send(clientSocket, (const void*)charCheckOk, BUFF_SIZE, 0);
   if (flag == 0) {
     std::cout << "Присоединился: " << nickname << " на канале " << channel
@@ -253,5 +278,15 @@ void handleClient(int clientSocket, std::vector<Channel>& channels) {
       buffer[msg_read] = '\0';
     }
     close(clientSocket);
+  }
+}
+
+void signalHandler(int signal) {
+  if (signal == SIGINT) {
+    close(sockets.clientSocket);
+    close(sockets.clientSocketOnServer);
+    close(sockets.serverSocket);
+    std::cout << "exiting..." << std::endl;
+    exit(EXIT_SUCCESS);
   }
 }

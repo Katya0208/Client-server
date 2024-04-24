@@ -11,6 +11,7 @@
 #include <functional>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -186,25 +187,46 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
 }
 
 void handleClient(int clientSocket, std::vector<Channel>& channels) {
+  int flag = 0;
   Channel ch;
   char buffer[BUFF_SIZE];
   char nickname[24], channel[24];
   int msg_read = recv(clientSocket, buffer, BUFF_SIZE, 0);
   sscanf(buffer, "%s %s", nickname, channel);
-  std::cout << "Присоединился: " << nickname << " на канале " << channel
-            << std::endl;
-  ch.name = channel;
-  ch.clients.push_back(nickname);
-  channels.push_back({ch.name, ch.msgs, ch.clients});
-  while (true) {
-    int msg_read = recv(clientSocket, buffer, BUFF_SIZE, 0);
-    if (msg_read <= 0) {
-      exit(1);
+  std::string answer;
+  answer = "OK";
+  for (auto it = channels.begin(); it != channels.end(); ++it) {
+    if (it->name == channel) {
+      flag = 1;
+      answer = "Такой канал уже существует, выберите другое название";
     }
-    std::string request(buffer);
-    std::string answer = processRequest(request, channels, nickname);
-    const char* charAnswer = answer.c_str();
-    send(clientSocket, (const void*)charAnswer, BUFF_SIZE, 0);
-    buffer[msg_read] = '\0';
+    for (const auto& client : it->clients) {
+      if (client == nickname) {
+        flag = 1;
+        answer = "Такой никнейм уже используется, выберите другой";
+      }
+    }
+  }
+  const char* charCheckOk = answer.c_str();
+  // std::cout << "Error: " << charCheckOk << std::endl;
+  send(clientSocket, (const void*)charCheckOk, BUFF_SIZE, 0);
+  if (flag == 0) {
+    std::cout << "Присоединился: " << nickname << " на канале " << channel
+              << std::endl;
+    ch.name = channel;
+    ch.clients.push_back(nickname);
+    channels.push_back({ch.name, ch.msgs, ch.clients});
+    while (true) {
+      int msg_read = recv(clientSocket, buffer, BUFF_SIZE, 0);
+      if (msg_read <= 0) {
+        exit(1);
+      }
+      std::string request(buffer);
+      std::string answer = processRequest(request, channels, nickname);
+      const char* charAnswer = answer.c_str();
+      send(clientSocket, (const void*)charAnswer, BUFF_SIZE, 0);
+      buffer[msg_read] = '\0';
+    }
+    close(clientSocket);
   }
 }

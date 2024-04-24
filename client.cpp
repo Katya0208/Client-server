@@ -36,16 +36,22 @@ int main(int argc, char* argv[]) {
   nickPlusChannel += argv[3];
   const char* charNickPlusChannel = nickPlusChannel.c_str();
   send(clientSocket, (const void*)charNickPlusChannel, BUFF_SIZE, 0);
-
-  while (true) {
-    std::string message;
-    getline(std::cin, message);
-    const char* charMessage = message.c_str();
-    send(clientSocket, (const void*)charMessage, BUFF_SIZE, 0);
-    recv(clientSocket, buffer, BUFF_SIZE, 0);
-    std::string strBuffer(buffer);
-    std::cout << strBuffer << std::endl;
-    std::cout << std::endl;
+  recv(clientSocket, buffer, BUFF_SIZE, 0);
+  std::string strBuffer1(buffer);
+  if (strBuffer1 == "OK") {
+    while (true) {
+      std::string message;
+      getline(std::cin, message);
+      const char* charMessage = message.c_str();
+      send(clientSocket, (const void*)charMessage, BUFF_SIZE, 0);
+      recv(clientSocket, buffer, BUFF_SIZE, 0);
+      std::string strBuffer(buffer);
+      std::cout << strBuffer << std::endl;
+      std::cout << std::endl;
+    }
+    close(clientSocket);
+  } else {
+    std::cout << buffer << std::endl;
   }
 
   close(clientSocket);

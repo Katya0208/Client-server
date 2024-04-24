@@ -37,26 +37,68 @@ struct Sockets {
   int clientSocketOnServer;
 };
 
+enum class ErrorType {
+  CommandUsageRead,
+  ChannelEmpty,
+  UserNotFound,
+  ChannelNotFound,
+  UserAlreadyExists,
+  CommandUsageSend,
+  CommandUsageJoin,
+  CommandUsageExit,
+  WrongCommand,
+  InvalidAddress,
+  FailedSocketCreat,
+  ConnectingFailed,
+  BindingFailed,
+  ChannelNameAlreadyExists,
+  NicknameAlreadyExists,
+};
+
+static std::map<ErrorType, std::string> errorMessages = {
+    {ErrorType::CommandUsageRead, "Error command, usage: read <channel>"},
+    {ErrorType::ChannelEmpty, "Channel is empty"},
+    {ErrorType::UserNotFound, "This user was not found in the channel"},
+    {ErrorType::ChannelNotFound,
+     "There is no such channel yet, we are creating it..."},
+    {ErrorType::UserAlreadyExists,
+     "Error: this user is already in the channel"},
+    {ErrorType::CommandUsageSend,
+     "Error command, usage: send <channel> <message>"},
+    {ErrorType::CommandUsageJoin, "Error command, usage: join <channel>"},
+    {ErrorType::CommandUsageExit, "Error command, usage: exit <channel>"},
+    {ErrorType::WrongCommand,
+     "Error: The wrong command was entered. Use the commands from the list "
+     "below:\n"},
+    {ErrorType::InvalidAddress, "Error: invalid address"},
+    {ErrorType::FailedSocketCreat, "Error: failed to create a socket"},
+    {ErrorType::ConnectingFailed, "Error: connecting failed"},
+    {ErrorType::BindingFailed, "Error: binding failed"},
+    {ErrorType::ChannelNameAlreadyExists,
+     "Such a channel already exists, choose another name"},
+    {ErrorType::NicknameAlreadyExists,
+     "This nickname is already in use, choose another one"}};
+
 Sockets sockets;
 
 void CreateClientSocket(int& clientSocket, int& port, char* address) {
   struct sockaddr_in serverAddress;
   clientSocket = socket(AF_INET, SOCK_STREAM, 0);
   if (clientSocket < 0) {
-    std::cerr << "Error: Error: failed to create a socket";
+    std::cerr << errorMessages[ErrorType::FailedSocketCreat];
     exit(1);
   }
   memset((char*)&serverAddress, 0, sizeof(serverAddress));
   serverAddress.sin_family = AF_INET;
   serverAddress.sin_port = htons(port);
   if (inet_pton(AF_INET, address, &(serverAddress.sin_addr)) != 1) {
-    std::cerr << "Error: invalid address" << std::endl;
+    std::cerr << errorMessages[ErrorType::InvalidAddress] << std::endl;
     exit(1);
   }
   // serverAddress.sin_addr.s_addr = inet_addr(address);
   if (connect(clientSocket, (struct sockaddr*)&serverAddress,
               sizeof(serverAddress)) < 0) {
-    std::cerr << "Error: connecting failed" << std::endl;
+    std::cerr << errorMessages[ErrorType::ConnectingFailed] << std::endl;
     exit(1);
   }
 }
@@ -66,7 +108,7 @@ void CreateServerSocket(int& serverSocket, int& port) {
   serverSocket = socket(AF_INET, SOCK_STREAM, 0);
   socklen_t serverLen = sizeof(serverAddress);
   if (serverSocket < 0) {
-    std::cerr << "Error: failed to create a socket" << std::endl;
+    std::cerr << errorMessages[ErrorType::FailedSocketCreat] << std::endl;
     exit(1);
   }
   memset((char*)&serverAddress, 0, sizeof(serverAddress));
@@ -74,7 +116,7 @@ void CreateServerSocket(int& serverSocket, int& port) {
   serverAddress.sin_port = htons(port);
   serverAddress.sin_addr.s_addr = INADDR_ANY;
   if (bind(serverSocket, (struct sockaddr*)&serverAddress, serverLen) < 0) {
-    std::cerr << "Error: binding failed" << std::endl;
+    std::cerr << errorMessages[ErrorType::BindingFailed] << std::endl;
     exit(1);
   }
   listen(serverSocket, MAX_CLIENTS);
@@ -86,10 +128,12 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
   std::istringstream iss(request);
   std::vector<std::string> words{std::istream_iterator<std::string>{iss},
                                  std::istream_iterator<std::string>{}};
+  ErrorType error;
   if (words[0] == "read") {
     int statusChannel = 0;
     if (words.size() != 2) {
-      return "Error command, use: read <channel>";
+      return errorMessages[ErrorType::CommandUsageRead];
+      // return "Error command, use: read <channel>";
     }
 
     for (Channel channel : channels) {
@@ -100,7 +144,8 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
         if (it != channel.clients.end()) {
           // пользователь есть в данном канале
           if (channel.msgs.empty()) {
-            return "Channel is empty";
+            return errorMessages[ErrorType::ChannelEmpty];
+            // return "Channel is empty";
           }
           //   for (Message pair : channel.msgs) {
           size_t numMessages = channel.msgs.size();
@@ -113,14 +158,16 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
           // answer += pair.nick + ": " + pair.message + '\n';
           //   }
         } else {
-          return "Error: user " + nickname + " not found in the channel " +
-                 channel.name;
+          return errorMessages[ErrorType::UserNotFound];
+          // return "Error: user " + nickname + " not found in the channel " +
+          channel.name;
         }
         break;
       }
     }
     if (statusChannel == 0) {
-      answer = "There is no such channel yet, we are creating it...";
+      answer = errorMessages[ErrorType::ChannelNotFound];
+      ;
       Channel newChannel;
       newChannel.name = words[1];
       newChannel.clients.push_back(nickname);
@@ -128,7 +175,8 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
     }
   } else if (words[0] == "send") {
     if (words.size() < 3) {
-      return "Error command, use: send <channel> <message>";
+      return errorMessages[ErrorType::CommandUsageSend];
+      // return "Error command, use: send <channel> <message>";
     }
     int statusChannel = 0;
     std::string msg = "";
@@ -149,14 +197,16 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
           it->msgs.push_back({mssg.nick, mssg.message});
           answer = "Message " + msg + " sent successfully";
         } else {
-          return "Error: user " + nickname + " not found in the channel " +
-                 it->name;
+          return errorMessages[ErrorType::UserNotFound];
+          // return "Error: user " + nickname + " not found in the channel " +
+          //        it->name;
         }
         break;
       }
     }
     if (statusChannel == 0) {
-      answer = "There is no such channel yet, we are creating it...";
+      answer = errorMessages[ErrorType::ChannelNotFound];
+      ;
       Channel newChannel;
       newChannel.name = words[1];
       newChannel.clients.push_back(nickname);
@@ -165,7 +215,8 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
   } else if (words[0] == "join") {
     int statusChannel = 0;
     if (words.size() != 2) {
-      return "Error command, use: join <channel>";
+      return errorMessages[ErrorType::CommandUsageJoin];
+      // return "Error command, use: join <channel>";
     }
     for (auto it = channels.begin(); it != channels.end(); ++it) {
       if (it->name == words[1]) {
@@ -173,7 +224,8 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
         std::vector<std::string>::iterator itClient =
             std::find(it->clients.begin(), it->clients.end(), nickname);
         if (itClient != it->clients.end()) {
-          return "Error: this user is already in the channel";
+          return errorMessages[ErrorType::UserAlreadyExists];
+          // return "Error: this user is already in the channel";
         } else {
           it->clients.push_back(nickname);
           answer = "User " + nickname + " successfully added to the channel " +
@@ -182,7 +234,8 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
       }
     }
     if (statusChannel == 0) {
-      answer = "There is no such channel yet, we are creating it...";
+      answer = errorMessages[ErrorType::ChannelNotFound];
+      ;
       Channel newChannel;
       newChannel.name = words[1];
       newChannel.clients.push_back(nickname);
@@ -191,7 +244,8 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
   } else if (words[0] == "exit") {
     int statusChannel = 0;
     if (words.size() != 2) {
-      return "Error command, usage: exit <channel>";
+      return errorMessages[ErrorType::CommandUsageExit];
+      // return "Error command, usage: exit <channel>";
     }
     for (auto it = channels.begin(); it != channels.end(); ++it) {
       if (it->name == words[1]) {
@@ -203,12 +257,14 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
           answer = "User " + nickname +
                    " successfully deleted from the channel " + words[1];
         } else {
-          return "The user " + nickname + " is not in the channel " + words[1];
+          return errorMessages[ErrorType::UserNotFound];
+          // return "The user " + nickname + " is not in the channel " +
+          // words[1];
         }
       }
     }
     if (statusChannel == 0) {
-      answer = "There is no such channel yet, we are creating it...";
+      answer = errorMessages[ErrorType::ChannelNotFound];
       Channel newChannel;
       newChannel.name = words[1];
       newChannel.clients.push_back(nickname);
@@ -223,9 +279,7 @@ std::string processRequest(std::string request, std::vector<Channel>& channels,
     answer += "exit <channel>\n";
     answer += "commands";
   } else {
-    answer =
-        "Error: The wrong command was entered. Use the commands from the list "
-        "below:\n";
+    answer = errorMessages[ErrorType::WrongCommand];
     answer += "\n";
     answer += "send <channel> <message>\n";
     answer += "read <channel>\n";
@@ -248,12 +302,12 @@ void handleClient(int clientSocket, std::vector<Channel>& channels) {
   for (auto it = channels.begin(); it != channels.end(); ++it) {
     if (it->name == channel) {
       flag = 1;
-      answer = "Such a channel already exists, choose another name";
+      answer = errorMessages[ErrorType::ChannelNameAlreadyExists];
     }
     for (const auto& client : it->clients) {
       if (client == nickname) {
         flag = 1;
-        answer = "This nickname is already in use, choose another one";
+        answer = errorMessages[ErrorType::NicknameAlreadyExists];
       }
     }
   }

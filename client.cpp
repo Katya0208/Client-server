@@ -16,8 +16,7 @@ int main(int argc, char* argv[]) {
   port = std::atoi(argv[2]);
   channel = argv[3];
   if (channel.length() > 24) {
-    std::cerr << "Error: длина имени канала не должна превышать 24 символа"
-              << std::endl;
+    std::cerr << errorMessages[ErrorType::ErrorLenNameChannel] << std::endl;
     exit(1);
   }
   CreateClientSocket(sockets.clientSocket, port, argv[1]);
@@ -27,8 +26,7 @@ int main(int argc, char* argv[]) {
   getline(std::cin, nickname);
 
   while (nickname.size() > 24) {
-    std::cerr << "Error: длина nickname не должна превышать 24 символа"
-              << std::endl;
+    std::cerr << errorMessages[ErrorType::ErrorLenNickname] << std::endl;
     getline(std::cin, nickname);
   }
   nickPlusChannel = nickname;
@@ -40,14 +38,18 @@ int main(int argc, char* argv[]) {
   std::string strBuffer1(buffer);
   if (strBuffer1 == "OK") {
     while (true) {
+      std::cout << "Enter the command: ";
       std::string message;
       getline(std::cin, message);
       const char* charMessage = message.c_str();
       send(sockets.clientSocket, (const void*)charMessage, BUFF_SIZE, 0);
-      recv(sockets.clientSocket, buffer, BUFF_SIZE, 0);
-      std::string strBuffer(buffer);
-      std::cout << strBuffer << std::endl;
-      std::cout << std::endl;
+      if (recv(sockets.clientSocket, buffer, BUFF_SIZE, 0) > 0) {
+        std::string strBuffer(buffer);
+        std::cout << strBuffer << std::endl;
+        std::cout << std::endl;
+      } else {
+        break;
+      }
     }
     close(sockets.clientSocket);
   } else {

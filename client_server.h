@@ -53,6 +53,9 @@ enum class ErrorType {
   BindingFailed,
   ChannelNameAlreadyExists,
   NicknameAlreadyExists,
+  ErrorLenNickname,
+  ErrorLenNameChannel,
+  EcceptingFailed,
 };
 
 static std::map<ErrorType, std::string> errorMessages = {
@@ -77,7 +80,12 @@ static std::map<ErrorType, std::string> errorMessages = {
     {ErrorType::ChannelNameAlreadyExists,
      "Such a channel already exists, choose another name"},
     {ErrorType::NicknameAlreadyExists,
-     "This nickname is already in use, choose another one"}};
+     "This nickname is already in use, choose another one"},
+    {ErrorType::ErrorLenNameChannel,
+     "Error: the length of the channel name should not exceed 24 characters"},
+    {ErrorType::ErrorLenNickname,
+     "Error: nickname must not exceed 24 characters in length"},
+    {ErrorType::EcceptingFailed, "Error: eccepting failed"}};
 
 Sockets sockets;
 

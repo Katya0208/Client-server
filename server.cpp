@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
     sockets.clientSocketOnServer = accept(
         sockets.serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
     if (sockets.clientSocketOnServer < 0) {
-      std::cerr << "Error: eccepting failed" << std::endl;
+      std::cerr << errorMessages[ErrorType::EcceptingFailed] << std::endl;
       exit(1);
     }
     threads.erase(std::remove_if(threads.begin(), threads.end(),

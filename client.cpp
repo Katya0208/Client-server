@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "client_server.h"
+#include "client_server.hpp"
 
 int main(int argc, char* argv[]) {
   if (argc != 4) {

@@ -24,12 +24,6 @@ int main(int argc, char* argv[]) {
       exit(1);
     }
 
-    threads.erase(std::remove_if(threads.begin(), threads.end(),
-                                 [](const std::shared_ptr<std::thread>& t) {
-                                   return !t->joinable();
-                                 }),
-                  threads.end());
-
     std::shared_ptr<std::thread> clientThread = std::make_shared<std::thread>(
         handleClient, sockets.clientSocketOnServer, std::ref(channels));
 

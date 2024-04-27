@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
     }
     threads.erase(std::remove_if(threads.begin(), threads.end(),
                                  [](const std::shared_ptr<std::thread>& t) {
-                                   return t->joinable() && !t->joinable();
+                                   return !t->joinable();
                                  }),
                   threads.end());
 
